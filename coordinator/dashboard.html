@@ -1,0 +1,803 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ thống Điều phối CSDL - Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.socket.io/4.4.1/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #4361ee;
+            --secondary-color: #3f37c9;
+            --success-color: #4cc9f0;
+            --warning-color: #f72585;
+            --info-color: #4895ef;
+            --dark-color: #212529;
+            --light-color: #f8f9fa;
+        }
+
+        body {
+            padding-top: 20px;
+            background-color: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-size: 0.85rem;
+        }
+
+        .card {
+            border-radius: 15px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            margin-bottom: 20px;
+            border: none;
+            overflow: hidden;
+        }
+
+        .card-header {
+            border-bottom: none;
+            padding: 1rem;
+        }
+
+        .header-banner {
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: white;
+            padding: 1.5rem 0;
+            margin-bottom: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .notification {
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 10px;
+            animation: fadeIn 0.5s;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+            position: relative;
+            font-size: 0.8rem;
+        }
+
+        .notification-info {
+            background-color: #e3f2fd;
+            border-left: 5px solid var(--info-color);
+        }
+
+        .notification-success {
+            background-color: #e8f5e9;
+            border-left: 5px solid #4caf50;
+        }
+
+        .notification-warning {
+            background-color: #fff8e1;
+            border-left: 5px solid #ff9800;
+        }
+
+        .notification-error {
+            background-color: #ffebee;
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .server-card {
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            transform-origin: center;
+        }
+
+        .server-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .server-busy {
+            border: 2px solid #ff4d6d;
+        }
+
+        .server-free {
+            border: 2px solid #52b788;
+        }
+
+        .timestamp {
+            font-size: 0.7em;
+            color: #6c757d;
+            position: absolute;
+            bottom: 3px;
+            right: 8px;
+        }
+
+        .pulse {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            animation: pulse 1.5s infinite;
+        }
+
+        .pulse-success {
+            background-color: #52b788;
+            box-shadow: 0 0 0 rgba(82, 183, 136, 0.4);
+        }
+
+        .pulse-danger {
+            background-color: #ff4d6d;
+            box-shadow: 0 0 0 rgba(255, 77, 109, 0.4);
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(82, 183, 136, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(82, 183, 136, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(82, 183, 136, 0);
+            }
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status-badge {
+            font-size: 0.75em;
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
+
+        #notification-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        #notification-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #notification-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        #notification-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+        }
+
+        #notification-container::-webkit-scrollbar-thumb:hover {
+            background: #a8a8a8;
+        }
+
+        .btn {
+            border-radius: 8px;
+            padding: 6px 16px;
+            font-weight: 500;
+            transition: all 0.3s;
+            font-size: 0.8rem;
+        }
+
+        .btn-sm {
+            padding: 4px 10px;
+            font-size: 0.75rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-danger {
+            background-color: #ef476f;
+            border-color: #ef476f;
+        }
+
+        .btn-danger:hover {
+            background-color: #d64161;
+            border-color: #d64161;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+        }
+
+        .form-control {
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 0.8rem;
+        }
+
+        .form-control:focus {
+            box-shadow: 0 0 0 0.2rem rgba(67, 97, 238, 0.25);
+            border-color: var(--primary-color);
+        }
+
+        .connection-indicator {
+            padding: 12px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            margin-top: 10px;
+            display: flex;
+            align-items: center;
+            font-size: 0.8rem;
+        }
+
+        .server-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .server-icon {
+            font-size: 1.4rem;
+            margin-right: 12px;
+            color: var(--primary-color);
+        }
+
+        .server-details {
+            margin-top: 12px;
+            font-size: 0.8rem;
+        }
+
+        .client-badge {
+            background-color: #e9ecef;
+            color: #212529;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 4px;
+            font-size: 0.75rem;
+        }
+
+        .db-icon {
+            font-size: 1.6rem;
+            color: var(--primary-color);
+            margin-right: 10px;
+        }
+
+        h1,
+        h2,
+        h3,
+        h4,
+        h5,
+        h6 {
+            font-size: 90%;
+        }
+
+        .display-5 {
+            font-size: 1.8rem;
+        }
+
+        .lead {
+            font-size: 0.9rem;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+        }
+
+        .form-label {
+            font-size: 0.8rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+        }
+
+        label {
+            font-size: 0.8rem;
+        }
+
+        p {
+            font-size: 0.8rem;
+            margin-bottom: 0.5rem;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header-banner mb-4">
+            <div class="container">
+                <div class="row align-items-center">
+                    <div class="col-md-1 text-center">
+                    </div>
+                    <div class="col-md-11">
+                        <h1 class="display-5 fw-bold">Hệ thống Điều phối CSDL</h1>
+                        <p class="lead">Giám sát và quản lý truy cập dữ liệu theo thời gian thực</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <!-- Trạng thái hệ thống -->
+            <div class="col-md-6">
+                <div class="card mb-4">
+                    <div class="card-header bg-white">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-server me-2 text-primary"></i>
+                            <h5 class="card-title mb-0 fw-bold">Trạng thái Server</h5>
+                        </div>
+                    </div>
+                    <div class="card-body" id="servers-container">
+                        <div class="d-flex justify-content-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Đang tải...</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Đăng ký Client mới -->
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-user-plus me-2 text-primary"></i>
+                            <h5 class="card-title mb-0 fw-bold">Yêu cầu truy cập</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="client-form">
+                            <div class="mb-3">
+                                <label for="client-id" class="form-label">Client ID:</label>
+                                <div class="input-group mb-3">
+                                    <input type="text" class="form-control" id="client-id"
+                                        placeholder="Nhập ID hoặc để trống để tự động tạo"
+                                        aria-describedby="generate-id">
+                                    <button class="btn btn-outline-secondary" type="button" id="generate-id">
+                                        <i class="fas fa-random me-1"></i> Tạo ID
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-grid gap-2 d-md-flex justify-content-md-start">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-paper-plane me-1"></i> Gửi yêu cầu
+                                </button>
+                                <button type="button" class="btn btn-danger" id="release-access">
+                                    <i class="fas fa-unlock me-1"></i> Giải phóng quyền
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Thông báo -->
+            <div class="col-md-6">
+                <div class="card">
+                    <div class="card-header bg-white">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-bell me-2 text-primary"></i>
+                                <h5 class="card-title mb-0 fw-bold">Thông báo hệ thống</h5>
+                            </div>
+                            <button id="clear-notifications" class="btn btn-sm btn-outline-secondary">
+                                <i class="fas fa-broom me-1"></i> Xóa tất cả
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="notification-container">
+                            <div class="notification notification-info">
+                                <p class="mb-0">
+                                    <i class="fas fa-info-circle me-2"></i>
+                                    Khởi động hệ thống. Đang chờ kết nối...
+                                </p>
+                                <div class="timestamp">Bây giờ</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Kết nối -->
+                <div class="card mt-4">
+                    <div class="card-header bg-white">
+                        <div class="d-flex align-items-center">
+                            <i class="fas fa-plug me-2 text-primary"></i>
+                            <h5 class="card-title mb-0 fw-bold">Cấu hình kết nối</h5>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="connection-form">
+                            <div class="row mb-3">
+                                <label for="coordinator-url" class="col-sm-3 col-form-label">Coordinator URL:</label>
+                                <div class="col-sm-9">
+                                    <input type="text" class="form-control" id="coordinator-url"
+                                        value="http://localhost:5000">
+                                </div>
+                            </div>
+                            <div class="connection-indicator">
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="connection-status" checked>
+                                    <label class="form-check-label" for="connection-status">
+                                        <span id="connection-label" class="badge bg-success">
+                                            <i class="fas fa-wifi me-1"></i> Đã kết nối
+                                        </span>
+                                    </label>
+                                </div>
+                                <button type="submit" class="btn btn-sm btn-primary ms-auto">
+                                    <i class="fas fa-sync-alt me-1"></i> Kết nối lại
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let socket;
+            let clientId = '';
+            let currentServer = null;
+            let isConnected = false;
+
+            // DOM elements
+            const serversContainer = document.getElementById('servers-container');
+            const notificationContainer = document.getElementById('notification-container');
+            const clientForm = document.getElementById('client-form');
+            const clientIdInput = document.getElementById('client-id');
+            const generateIdBtn = document.getElementById('generate-id');
+            const releaseAccessBtn = document.getElementById('release-access');
+            const clearNotificationsBtn = document.getElementById('clear-notifications');
+            const connectionForm = document.getElementById('connection-form');
+            const coordinatorUrlInput = document.getElementById('coordinator-url');
+            const connectionStatus = document.getElementById('connection-status');
+            const connectionLabel = document.getElementById('connection-label');
+
+            // Helpers
+            function generateUUID() {
+                return Math.random().toString(36).substring(2, 10);
+            }
+
+            function formatTimestamp() {
+                const now = new Date();
+                return now.toLocaleTimeString();
+            }
+
+            function addNotification(message, type = 'info') {
+                const notification = document.createElement('div');
+                notification.className = `notification notification-${type}`;
+
+                let icon = 'info-circle';
+                if (type === 'success') icon = 'check-circle';
+                if (type === 'warning') icon = 'exclamation-triangle';
+                if (type === 'error') icon = 'times-circle';
+
+                notification.innerHTML = `
+                    <p class="mb-0"><i class="fas fa-${icon} me-2"></i>${message}</p>
+                    <div class="timestamp">${formatTimestamp()}</div>
+                `;
+                notificationContainer.prepend(notification);
+
+                // Giới hạn số lượng thông báo
+                if (notificationContainer.children.length > 30) {
+                    notificationContainer.removeChild(notificationContainer.lastChild);
+                }
+            }
+
+            function updateServerStatus(servers, status) {
+                serversContainer.innerHTML = '';
+
+                if (!servers || servers.length === 0) {
+                    serversContainer.innerHTML = '<div class="alert alert-warning">Không có server nào được tìm thấy</div>';
+                    return;
+                }
+
+                servers.forEach(server => {
+                    const serverStatus = status[server.id];
+                    const isBusy = serverStatus?.busy;
+                    const currentClient = serverStatus?.current_client;
+
+                    const serverCard = document.createElement('div');
+                    serverCard.className = `card server-card ${isBusy ? 'server-busy' : 'server-free'}`;
+
+                    const pulseClass = isBusy ? 'pulse-danger' : 'pulse-success';
+                    const statusText = isBusy ? 'Đang bận' : 'Sẵn sàng';
+                    const statusBadgeClass = isBusy ? 'bg-danger' : 'bg-success';
+                    const serverIcon = isBusy ? 'database-lock' : 'database';
+
+                    serverCard.innerHTML = `
+                        <div class="card-body">
+                            <div class="server-info">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-${serverIcon} server-icon"></i>
+                                    <h5 class="card-title mb-0 fw-bold">${server.name}</h5>
+                                </div>
+                                <span class="badge ${statusBadgeClass} status-badge">
+                                    <span class="pulse ${pulseClass}"></span>${statusText}
+                                </span>
+                            </div>
+                            <div class="server-details">
+                                <div class="d-flex justify-content-between">
+                                    <p class="card-text text-muted mb-1">Server ID: ${server.id}</p>
+                                </div>
+                                <p class="card-text text-muted mb-2">URL: ${server.url}</p>
+                                ${currentClient ? `
+                                <div class="mt-2">
+                                    <label class="text-muted">Client đang truy cập:</label>
+                                    <div class="client-badge">
+                                        <i class="fas fa-user me-1"></i> ${currentClient}
+                                    </div>
+                                </div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                    serversContainer.appendChild(serverCard);
+                });
+            }
+
+            // Connect to Coordinator WebSocket
+            function connectWebSocket() {
+                const url = coordinatorUrlInput.value;
+
+                try {
+                    // Close existing connection if any
+                    if (socket && socket.connected) {
+                        socket.disconnect();
+                    }
+
+                    // Connect to new URL
+                    socket = io(url);
+
+                    socket.on('connect', () => {
+                        isConnected = true;
+                        connectionLabel.innerHTML = '<i class="fas fa-wifi me-1"></i> Đã kết nối';
+                        connectionLabel.className = 'badge bg-success';
+                        connectionStatus.checked = true;
+
+                        addNotification('Đã kết nối đến Coordinator', 'success');
+
+                        // Đăng ký client nếu đã có ID
+                        if (clientId) {
+                            socket.emit('register', { client_id: clientId });
+                        }
+
+                        // Lấy trạng thái server
+                        fetch(`${url}/server_status`)
+                            .then(response => response.json())
+                            .then(data => {
+                                updateServerStatus(data.servers, data.status);
+                            })
+                            .catch(error => {
+                                addNotification(`Lỗi khi lấy trạng thái server: ${error.message}`, 'error');
+                            });
+                    });
+
+                    socket.on('disconnect', () => {
+                        isConnected = false;
+                        connectionLabel.innerHTML = '<i class="fas fa-wifi-slash me-1"></i> Ngắt kết nối';
+                        connectionLabel.className = 'badge bg-danger';
+                        connectionStatus.checked = false;
+                        addNotification('Ngắt kết nối từ Coordinator', 'warning');
+                    });
+
+                    socket.on('server_assigned', (data) => {
+                        currentServer = data;
+                        addNotification(`Được phân bổ đến ${data.server_name}`, 'success');
+
+                        // Lấy trạng thái server mới
+                        fetch(`${url}/server_status`)
+                            .then(response => response.json())
+                            .then(data => {
+                                updateServerStatus(data.servers, data.status);
+                            });
+                    });
+
+                    socket.on('error', (error) => {
+                        addNotification(`Lỗi WebSocket: ${error}`, 'error');
+                    });
+
+                    // Event handlers đặc biệt từ server
+                    socket.on('registered', (data) => {
+                        addNotification(`${data.message}`, 'info');
+                    });
+
+                    socket.on('server_status_change', (data) => {
+                        updateServerStatus(data.servers, data.status);
+                        addNotification('Trạng thái server đã thay đổi', 'info');
+                    });
+
+                } catch (error) {
+                    addNotification(`Lỗi kết nối: ${error.message}`, 'error');
+                    connectionLabel.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Lỗi kết nối';
+                    connectionLabel.className = 'badge bg-danger';
+                    connectionStatus.checked = false;
+                }
+            }
+
+            // Event handlers
+            generateIdBtn.addEventListener('click', () => {
+                clientIdInput.value = generateUUID();
+            });
+
+            clearNotificationsBtn.addEventListener('click', () => {
+                notificationContainer.innerHTML = '';
+                addNotification('Đã xóa tất cả thông báo', 'info');
+            });
+
+            clientForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                // Lấy hoặc tạo client ID
+                if (!clientIdInput.value.trim()) {
+                    clientIdInput.value = generateUUID();
+                }
+
+                clientId = clientIdInput.value.trim();
+
+                // Đăng ký với WebSocket nếu đã kết nối
+                if (isConnected) {
+                    socket.emit('register', { client_id: clientId });
+                }
+
+                // Gửi yêu cầu truy cập
+                const url = coordinatorUrlInput.value;
+                fetch(`${url}/request_access`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ client_id: clientId })
+                })
+                    .then(response => {
+                        if (response.status === 503) {
+                            return response.json().then(data => {
+                                addNotification(`${data.error}`, 'warning');
+                                throw new Error('Servers busy');
+                            });
+                        }
+                        else if (response.status === 409) {
+                            return response.json().then(data => {
+                                currentServer = {
+                                    server_id: data.server_id,
+                                    server_name: data.server_name,
+                                    server_url: data.server_url
+                                };
+                                addNotification(data.message, 'info');
+                                return data;
+                            });
+                        }
+                        else if (!response.ok) {
+                            return response.json().then(data => {
+                                addNotification(`Lỗi: ${data.error}`, 'error');
+                                throw new Error(`HTTP error ${response.status}`);
+                            });
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        if (!data.error) {
+                            currentServer = data;
+                            // addNotification(`Được phân bổ đến ${data.server_name}`, 'success');
+
+                            // Cập nhật trạng thái server
+                            fetch(`${url}/server_status`)
+                                .then(response => response.json())
+                                .then(statusData => {
+                                    updateServerStatus(statusData.servers, statusData.status);
+                                });
+                        }
+                    })
+                    .catch(error => {
+                        if (error.message !== 'Servers busy') {
+                            addNotification(`Lỗi khi yêu cầu truy cập: ${error.message}`, 'error');
+                        }
+                    });
+            });
+
+            releaseAccessBtn.addEventListener('click', () => {
+                const inputClientId = clientIdInput.value.trim();
+
+                if (!inputClientId) {
+                    addNotification('Không có client ID để giải phóng quyền truy cập', 'warning');
+                    return;
+                }
+
+                addNotification(`Đang thử giải phóng quyền cho client: ${inputClientId}`, 'info');
+
+                const url = coordinatorUrlInput.value;
+
+                fetch(`${url}/release_access`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        client_id: inputClientId
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === "success") {
+                            addNotification(`Đã giải phóng ${data.released_servers.length} server`, 'success');
+                            if (inputClientId === clientId) {
+                                currentServer = null;
+                            }
+
+                            // Cập nhật trạng thái server
+                            fetch(`${url}/server_status`)
+                                .then(response => response.json())
+                                .then(statusData => {
+                                    updateServerStatus(statusData.servers, statusData.status);
+                                });
+                        } else {
+                            if (data.connected_clients) {
+                                const clientInfo = data.connected_clients.map(c =>
+                                    `Server ${c.server_id}: Client ${c.client_id}`).join(', ');
+                                addNotification(`Lỗi: ${data.error}. Clients đang kết nối: ${clientInfo}`, 'error');
+                            } else {
+                                addNotification(`Lỗi: ${data.error}`, 'error');
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        addNotification(`Lỗi khi giải phóng: ${error.message}`, 'error');
+                    });
+            });
+
+            connectionForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                connectWebSocket();
+            });
+
+            connectionStatus.addEventListener('change', () => {
+                if (connectionStatus.checked) {
+                    if (!isConnected) {
+                        connectWebSocket();
+                    }
+                } else {
+                    if (socket && socket.connected) {
+                        socket.disconnect();
+                    }
+                }
+            });
+
+            // Initialize
+            if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                coordinatorUrlInput.value = `http://${window.location.hostname}:5000`;
+            }
+
+            connectWebSocket();
+
+            // Auto-update server status periodically
+            setInterval(() => {
+                if (isConnected) {
+                    const url = coordinatorUrlInput.value;
+                    fetch(`${url}/server_status`)
+                        .then(response => response.json())
+                        .then(data => {
+                            updateServerStatus(data.servers, data.status);
+                        })
+                        .catch(error => console.error('Error fetching server status:', error));
+                }
+            }, 5000);
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/js/all.min.js"></script>
+</body>
+
+</html>
