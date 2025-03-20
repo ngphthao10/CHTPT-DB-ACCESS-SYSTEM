@@ -10,8 +10,8 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ID của database server này (thay đổi cho mỗi máy chủ)
-SERVER_ID = 1  # Đặt là 1 cho server 1, 2 cho server 2
-SERVER_PORT = 5001  # Port mặc định cho server 1, sử dụng 5002 cho server 2
+SERVER_ID = 1  
+SERVER_PORT = 5001  
 
 # Lưu trữ thông tin client hiện tại
 current_client = None
@@ -289,11 +289,6 @@ def log_access(client_id, operation):
     conn.close()
 
 if __name__ == '__main__':
-    # Khởi tạo cơ sở dữ liệu
     init_db()
-    
-    # Sử dụng port tùy chỉnh nếu có từ môi trường
     port = int(os.environ.get('PORT', SERVER_PORT))
-    
-    # Chạy ứng dụng với socketio
     socketio.run(app, host='0.0.0.0', port=port, debug=True)

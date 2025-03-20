@@ -10,8 +10,8 @@ CORS(app)
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # ID của database server này (thay đổi cho mỗi máy chủ)
-SERVER_ID = 2  # Đặt là 1 cho server 1, 2 cho server 2
-SERVER_PORT = 5002  # Port mặc định cho server 1, sử dụng 5002 cho server 2
+SERVER_ID = 2  
+SERVER_PORT = 5002  
 
 # Lưu trữ thông tin client hiện tại
 current_client = None

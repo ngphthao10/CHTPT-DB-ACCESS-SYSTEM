@@ -136,7 +136,6 @@ def request_access():
     server_status[server_id]["current_client"] = client_id
     server_status[server_id]["last_access"] = time.time()
     
-    # Log thông tin điều phối
     print(f"CLIENT {client_id} được điều phối đến {selected_server['name']}")
     
     # Thông báo cho database server về client sắp kết nối
@@ -224,7 +223,6 @@ def release_access():
     
 @app.route('/server_status', methods=['GET'])
 def get_server_status():
-    """Endpoint để kiểm tra trạng thái của các database servers"""
     return jsonify({
         "servers": database_servers,
         "status": server_status
@@ -286,8 +284,5 @@ def init_server_status():
         }
 
 if __name__ == '__main__':
-    # Khởi tạo trạng thái server
     init_server_status()
-    
-    # Chạy ứng dụng với socketio
     socketio.run(app, host='0.0.0.0', port=5000, debug=True)
