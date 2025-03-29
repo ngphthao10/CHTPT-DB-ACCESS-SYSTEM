@@ -9,7 +9,7 @@ import json
 class DatabaseClient:
     def __init__(self, coordinator_url=None, client_id=None):
         self.client_id = client_id or str(uuid.uuid4())[:8]
-        self.coordinator_url = coordinator_url or "http://localhost:5000"
+        self.coordinator_url = coordinator_url or "http://192.168.214.103:5000"
         self.current_server = None
         
         # Khởi tạo socket cho coordinator
@@ -68,35 +68,12 @@ class DatabaseClient:
         def connect():
             self.is_connected_to_db = True
             print(f"[WebSocket] Đã kết nối tới Database Server {self.current_server['server_name']}")
-            # Đăng ký với database server
-            self.db_socket.emit('register_db_client', {'client_id': self.client_id})
-        
-        @self.db_socket.event
-        def disconnect():
-            self.is_connected_to_db = False
-            print(f"[WebSocket] Ngắt kết nối từ Database Server")
-        
-        @self.db_socket.event
-        def db_registered(data):
-            print(f"[WebSocket] Đăng ký với Database Server: {data['message']}")
-        
-        @self.db_socket.event
-        def client_accessing(data):
-            if data['client_id'] != self.client_id:
-                print(f"[WebSocket] Thông báo: Client {data['client_id']} đang truy cập Database Server {data['server_id']}")
-        
-        @self.db_socket.event
-        def access_released(data):
-            if data['client_id'] == self.client_id:
-                print(f"[WebSocket] Thông báo: Bạn đã giải phóng Database Server {data['server_id']}")
-            else:
-                print(f"[WebSocket] Thông báo: Client {data['client_id']} đã giải phóng Database Server {data['server_id']}")
-        
-        @self.db_socket.event
-        def data_accessed(data):
-            if data['client_id'] == self.client_id:
-                print(f"[WebSocket] Thông báo: Bạn đang truy xuất dữ liệu từ Database Server {data['server_id']}")
-    
+            # Đăng ký với database server - Di chuyển vào đây
+            try:
+                self.db_socket.emit('register_db_client', {'client_id': self.client_id})
+            except Exception as e:
+                print(f"Lỗi khi đăng ký với database server: {str(e)}")
+
     def connect_to_coordinator(self):
         """Kết nối WebSocket đến coordinator"""
         try:
@@ -158,7 +135,7 @@ class DatabaseClient:
             response = requests.post(
                 f"{self.coordinator_url}/request_access",
                 json={"client_id": self.client_id},
-                timeout=5
+                timeout=20
             )
             
             # Xử lý response thành công
@@ -244,7 +221,7 @@ class DatabaseClient:
                     "client_id": self.client_id,
                     "server_id": self.current_server["server_id"]
                 },
-                timeout=5
+                timeout=20
             )
             
             if db_response.status_code == 200 and coord_response.status_code == 200:
@@ -266,7 +243,7 @@ class DatabaseClient:
     def view_server_status(self):
         """Xem trạng thái các server"""
         try:
-            response = requests.get(f"{self.coordinator_url}/server_status", timeout=5)
+            response = requests.get(f"{self.coordinator_url}/server_status", timeout=15)
             if response.status_code == 200:
                 data = response.json()
                 
@@ -292,8 +269,57 @@ class DatabaseClient:
             print(f"❌ Lỗi kết nối đến coordinator: {str(e)}")
             return None
     
+    def run_interactive(self):
+        """Chạy client trong chế độ tương tác"""
+        print(f"\n=== CLIENT {self.client_id} STARTING ===\n")
+        
+        # Kết nối WebSocket đến coordinator
+        if not self.connect_to_coordinator():
+            print("⚠️ Không thể kết nối WebSocket đến coordinator. Sẽ tiếp tục với REST API.")
+        
+        running = True
+        while running:
+            print("\n=== MENU ===")
+            print("1. Xem trạng thái server")
+            print("2. Yêu cầu quyền truy cập database")
+            print("3. Truy xuất dữ liệu")
+            print("4. Giải phóng quyền truy cập")
+            print("5. Thoát")
+            
+            choice = input("\nChọn chức năng (1-5): ")
+            
+            if choice == "1":
+                self.view_server_status()
+            
+            elif choice == "2":
+                self.request_database_access()
+            
+            elif choice == "3":
+                print("\n📊 Đang truy cập database...")
+                data = self.access_database()
+                
+                if data:
+                    print(f"\n📋 Dữ liệu từ Database Server {data['server_id']}:")
+                    for item in data['data']:
+                        print(f"  - {item['name']}: {item['value']}")
+                else:
+                    print("❌ Không nhận được dữ liệu từ server")
+            
+            elif choice == "4":
+                print("\n🔓 Đang giải phóng quyền truy cập...")
+                self.release_access()
+            
+            elif choice == "5":
+                running = False
+                print("\nĐang thoát...")
+            
+            else:
+                print("\n⚠️ Lựa chọn không hợp lệ. Vui lòng chọn từ 1-5.")
+        
+        print(f"\n=== CLIENT {self.client_id} FINISHED ===")
+    
     def run_demo(self):
-        """Chạy demo truy cập database"""
+        """Chạy demo cơ bản mà không tự động giải phóng quyền truy cập"""
         print(f"\n=== CLIENT {self.client_id} STARTING ===\n")
         
         # Kết nối WebSocket đến coordinator
@@ -325,12 +351,16 @@ class DatabaseClient:
             print(f"  Xử lý... {i+1}/3")
             time.sleep(1)
         
-        # Giải phóng quyền truy cập
-        print("\n🔓 Đang giải phóng quyền truy cập...")
-        self.release_access()
+        print("\n✅ Xử lý hoàn tất. Sử dụng quyền truy cập đến khi được yêu cầu giải phóng.")
+        print("Nhấn Ctrl+C để kết thúc chương trình khi cần.")
         
-        # Hiển thị trạng thái server sau khi giải phóng
-        self.view_server_status()
+        # Đợi người dùng ngắt chương trình
+        try:
+            while True:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            # Chỉ khi người dùng ngắt, mới hiển thị thông báo, nhưng không tự động giải phóng
+            print("\n\nNgắt bởi người dùng. Đang thoát...")
         
         print(f"\n=== CLIENT {self.client_id} FINISHED ===")
     
@@ -357,6 +387,8 @@ def parse_arguments():
                         help='ID của client (mặc định: tự động tạo)')
     parser.add_argument('--gui', action='store_true',
                         help='Mở giao diện web dashboard thay vì chạy demo')
+    parser.add_argument('--interactive', action='store_true',
+                        help='Chạy trong chế độ tương tác với menu')
     return parser.parse_args()
 
 if __name__ == "__main__":
@@ -373,7 +405,12 @@ if __name__ == "__main__":
     try:
         # Tạo và chạy client
         client = DatabaseClient(args.coordinator, args.id)
-        client.run_demo()
+        
+        if args.interactive:
+            client.run_interactive()
+        else:
+            client.run_demo()
+            
     except KeyboardInterrupt:
         print("\n\nNgắt bởi người dùng. Đang thoát...")
     finally:

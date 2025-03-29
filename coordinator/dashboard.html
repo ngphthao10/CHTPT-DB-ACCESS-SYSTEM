@@ -620,6 +620,11 @@
                         addNotification('Trạng thái server đã thay đổi', 'info');
                     });
 
+                    // Lắng nghe sự kiện thông báo từ Coordinator
+                    socket.on('notification', (data) => {
+                        addNotification(data.message, data.type);
+                    });
+
                 } catch (error) {
                     addNotification(`Lỗi kết nối: ${error.message}`, 'error');
                     connectionLabel.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Lỗi kết nối';

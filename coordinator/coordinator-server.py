@@ -12,8 +12,8 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Thông tin về các database servers
 database_servers = [
-    {"id": 1, "name": "Database Server 1", "url": "http://localhost:5001"},
-    {"id": 2, "name": "Database Server 2", "url": "http://localhost:5002"}
+    {"id": 1, "name": "Database Server 1", "url": "http://192.168.214.103:5001"},
+    {"id": 2, "name": "Database Server 2", "url": "http://192.168.214.103:5002"}
 ]
 
 # Lưu trữ trạng thái của các database servers
@@ -35,17 +35,34 @@ def handle_connect():
         'status': server_status
     })
 
+# @socketio.on('register')
+# def handle_register(data):
+#     """Đăng ký client với ID"""
+#     client_id = data.get('client_id')
+#     if client_id:
+#         socket_connections[client_id] = request.sid
+#         print(f"Client {client_id} registered with socket {request.sid}")
+#         emit('registered', {
+#             'status': 'success', 
+#             'message': f'Đăng ký kết nối WebSocket thành công cho client {client_id}. Gửi yêu cầu truy cập để kết nối tới server.'
+#         })
+
 @socketio.on('register')
 def handle_register(data):
-    """Đăng ký client với ID"""
     client_id = data.get('client_id')
     if client_id:
         socket_connections[client_id] = request.sid
         print(f"Client {client_id} registered with socket {request.sid}")
         emit('registered', {
             'status': 'success', 
-            'message': f'Đăng ký kết nối WebSocket thành công cho client {client_id}. Gửi yêu cầu truy cập để kết nối tới server.'
+            'message': f'Đăng ký kết nối WebSocket thành công cho client {client_id}.'
         })
+        # Phát thông báo tới tất cả client (bao gồm dashboard)
+        socketio.emit('notification', {
+            'message': f'Client {client_id} đã đăng ký kết nối.',
+            'type': 'info'
+        })
+
 
 @socketio.on('disconnect')
 def handle_disconnect():
@@ -67,7 +84,7 @@ def handle_disconnect():
                             requests.post(
                                 f"{server['url']}/release",
                                 json={"client_id": client_id},
-                                timeout=5
+                                timeout=10
                             )
                     except Exception as e:
                         print(f"Lỗi khi giải phóng server: {str(e)}")
@@ -155,6 +172,11 @@ def request_access():
             "server_name": selected_server["name"],
             "server_url": selected_server["url"]
         }, room=socket_connections[client_id])
+
+        socketio.emit('notification', {
+            'message': f'Client {client_id} được gán tới {selected_server["name"]}.',
+            'type': 'success'
+        })
     
     # Thông báo cập nhật trạng thái server cho tất cả client
     socketio.emit('server_status_change', {
@@ -192,6 +214,12 @@ def release_access():
             server_status[svr_id]["current_client"] = None
             released_servers.append(svr_id)
             print(f"Released server {svr_id}")
+
+        socketio.emit('notification', {
+            'message': f'Client {client_id} đã ngắt kết nối/giải phóng quyền truy cập.',
+            'type': 'warning'
+        })
+
     
     if released_servers:
         # Thông báo cập nhật trạng thái server cho tất cả client
@@ -265,7 +293,7 @@ def notify_database_server(server, client_id):
         response = requests.post(
             f"{server['url']}/notify_access",
             json={"client_id": client_id},
-            timeout=5
+            timeout=12
         )
         response.raise_for_status()
         return response.json()
