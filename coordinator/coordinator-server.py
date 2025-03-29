@@ -71,7 +71,7 @@ def handle_disconnect():
     for client_id, sid in list(socket_connections.items()):
         if sid == request.sid:
             # Tự động giải phóng server nếu client disconnect
-            for server_id, status in server_status.items():
+            for server_id, status in server_status.items(): 
                 if status["current_client"] == client_id:
                     server_status[server_id]["busy"] = False
                     server_status[server_id]["current_client"] = None
